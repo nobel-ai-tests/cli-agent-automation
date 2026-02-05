@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Number</title>
+    <style>
+        :root {
+            --primary-color: #6200ee;
+            --secondary-color: #03dac6;
+            --background-color: #f5f5f5;
+            --error-color: #b00020;
+            --success-color: #4caf50;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        p {
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        input[type="number"] {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        #submit-btn {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #submit-btn:hover {
+            background-color: #3700b3;
+        }
+
+        #reset-btn {
+            background-color: #e0e0e0;
+            color: var(--text-color);
+            display: none;
+        }
+
+        #reset-btn:hover {
+            background-color: #bdbdbd;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        #feedback {
+            margin-top: 1.5rem;
+            font-weight: bold;
+            min-height: 1.5em;
+        }
+
+        .too-high, .too-low {
+            color: var(--error-color);
+        }
+
+        .correct {
+            color: var(--success-color);
+        }
+
+        #stats {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        #history-container {
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid #eee;
+            margin: 1.5rem 0;
+        }
+
+        h3 {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        #guess-history {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        #guess-history li {
+            background: #eee;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Guess the Number</h1>
+    <p>I have selected a random number between 1 and 100. Can you guess it?</p>
+
+    <div class="input-group">
+        <input type="number" id="guess-input" placeholder="Enter your guess (1-100)" min="1" max="100">
+    </div>
+
+    <div class="buttons">
+        <button id="submit-btn">Submit Guess</button>
+        <button id="reset-btn">Play Again</button>
+    </div>
+
+    <div id="feedback"></div>
+    <div id="stats">Attempts: 0</div>
+    <div id="history-container" class="hidden">
+        <hr>
+        <h3>Your Guesses</h3>
+        <ul id="guess-history"></ul>
+    </div>
+</div>
+
+<script>
+    let targetNumber;
+    let attempts = 0;
+    let gameOver = false;
+    let guesses = [];
+
+    const guessInput = document.getElementById('guess-input');
+    const submitBtn = document.getElementById('submit-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const feedback = document.getElementById('feedback');
+    const stats = document.getElementById('stats');
+    const historyContainer = document.getElementById('history-container');
+    const guessHistoryList = document.getElementById('guess-history');
+
+    function initGame() {
+        targetNumber = Math.floor(Math.random() * 100) + 1;
+        attempts = 0;
+        gameOver = false;
+        guesses = [];
+        updateUI('', 'Attempts: 0');
+        guessInput.value = '';
+        guessInput.disabled = false;
+        submitBtn.style.display = 'inline-block';
+        resetBtn.style.display = 'none';
+        historyContainer.classList.add('hidden');
+        guessHistoryList.innerHTML = '';
+        guessInput.focus();
+    }
+
+    function updateUI(msg, statMsg, className = '') {
+        feedback.textContent = msg;
+        feedback.className = className;
+        stats.textContent = statMsg;
+    }
+
+    function handleGuess() {
+        if (gameOver) return;
+
+        const guess = parseInt(guessInput.value);
+
+        // Validation
+        if (isNaN(guess) || guess < 1 || guess > 100) {
+            updateUI('Please enter a valid number between 1 and 100.', stats.textContent, 'too-high');
+            return;
+        }
+
+        attempts++;
+        guesses.push(guess);
+        updateHistory(guess);
+
+        if (guess === targetNumber) {
+            updateUI(`Correct! The number was ${targetNumber}.`, `You won in ${attempts} attempts!`, 'correct');
+            endGame();
+        } else if (guess > targetNumber) {
+            updateUI('Too high! Try again.', `Attempts: ${attempts}`, 'too-high');
+        } else {
+            updateUI('Too low! Try again.', `Attempts: ${attempts}`, 'too-low');
+        }
+
+        guessInput.value = '';
+        guessInput.focus();
+    }
+
+    function updateHistory(guess) {
+        if (guesses.length === 1) {
+            historyContainer.classList.remove('hidden');
+        }
+        const li = document.createElement('li');
+        li.textContent = guess;
+        guessHistoryList.prepend(li);
+    }
+
+    function endGame() {
+        gameOver = true;
+        guessInput.disabled = true;
+        submitBtn.style.display = 'none';
+        resetBtn.style.display = 'inline-block';
+    }
+
+    submitBtn.addEventListener('click', handleGuess);
+
+    guessInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleGuess();
+        }
+    });
+
+    resetBtn.addEventListener('click', initGame);
+
+    // Initialize game on load
+    initGame();
+</script>
+
+</body>
+</html>

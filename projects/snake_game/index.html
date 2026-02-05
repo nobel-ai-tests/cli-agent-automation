@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classic Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            display: block;
+            background-color: #34495e;
+            border: 5px solid #bdc3c7;
+        }
+
+        #score-board {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(44, 62, 80, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            box-sizing: border-box;
+        }
+
+        #game-over {
+            display: none;
+        }
+
+        button {
+            background-color: #27ae60;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <h1>Snake Game</h1>
+    <div id="score-board">Score: 0</div>
+    <div id="game-container">
+        <canvas id="snakeCanvas" width="400" height="400"></canvas>
+        <div id="start-screen" class="overlay">
+            <h2>Snake Game</h2>
+            <p>Use Arrow Keys to move</p>
+            <button id="start-btn">Start Game</button>
+        </div>
+        <div id="game-over" class="overlay">
+            <h2>Game Over!</h2>
+            <p id="final-score">Final Score: 0</p>
+            <button id="restart-btn">Restart Game</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

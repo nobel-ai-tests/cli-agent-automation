@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .score-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .score-box {
+            background-color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .score-box span {
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+
+        #score-x-label { color: #e74c3c; }
+        #score-o-label { color: #3498db; }
+
+        #status {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #34495e;
+            height: 2rem;
+            text-align: center;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            background-color: #34495e;
+            padding: 5px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            width: 320px;
+            height: 320px;
+            max-width: 90vw;
+            max-height: 90vw;
+            border: 4px solid #2c3e50;
+        }
+
+        .cell {
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            border: 2px solid #34495e;
+            margin: 2px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .cell:hover:not(.taken) {
+            background-color: #ecf0f1;
+            transform: scale(1.02);
+        }
+
+        .cell.x {
+            color: #e74c3c;
+        }
+
+        .cell.o {
+            color: #3498db;
+        }
+
+        .cell.taken {
+            cursor: not-allowed;
+        }
+
+        .cell.winner {
+            background-color: #2ecc71 !important;
+            color: white !important;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            font-weight: bold;
+        }
+
+        #reset-btn {
+            background-color: #34495e;
+            color: white;
+        }
+
+        #reset-btn:hover {
+            background-color: #2c3e50;
+            transform: translateY(-2px);
+        }
+
+        #clear-scores-btn {
+            background-color: #ecf0f1;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        #clear-scores-btn:hover {
+            background-color: #bdc3c7;
+            color: #2c3e50;
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 400px) {
+            .cell {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Tic-Tac-Toe</h1>
+    
+    <div class="score-container">
+        <div class="score-box">
+            <div id="score-x-label">Player X</div>
+            <span id="score-x">0</span>
+        </div>
+        <div class="score-box">
+            <div id="score-o-label">Player O</div>
+            <span id="score-o">0</span>
+        </div>
+    </div>
+
+    <div id="status" aria-live="polite">Player X's Turn</div>
+
+    <div class="board" id="board" role="grid" aria-label="Tic-Tac-Toe Board">
+        <div class="cell" data-index="0" role="gridcell" aria-label="Cell 1" tabindex="0"></div>
+        <div class="cell" data-index="1" role="gridcell" aria-label="Cell 2" tabindex="0"></div>
+        <div class="cell" data-index="2" role="gridcell" aria-label="Cell 3" tabindex="0"></div>
+        <div class="cell" data-index="3" role="gridcell" aria-label="Cell 4" tabindex="0"></div>
+        <div class="cell" data-index="4" role="gridcell" aria-label="Cell 5" tabindex="0"></div>
+        <div class="cell" data-index="5" role="gridcell" aria-label="Cell 6" tabindex="0"></div>
+        <div class="cell" data-index="6" role="gridcell" aria-label="Cell 7" tabindex="0"></div>
+        <div class="cell" data-index="7" role="gridcell" aria-label="Cell 8" tabindex="0"></div>
+        <div class="cell" data-index="8" role="gridcell" aria-label="Cell 9" tabindex="0"></div>
+    </div>
+
+    <div class="controls">
+        <button id="reset-btn" aria-label="Reset Game">Reset Game</button>
+        <button id="clear-scores-btn" aria-label="Clear All Scores">Clear Scores</button>
+    </div>
+
+    <script>
+        const statusDisplay = document.getElementById('status');
+        const resetBtn = document.getElementById('reset-btn');
+        const clearScoresBtn = document.getElementById('clear-scores-btn');
+        const scoreXDisplay = document.getElementById('score-x');
+        const scoreODisplay = document.getElementById('score-o');
+        const cells = document.querySelectorAll('.cell');
+
+        let gameActive = true;
+        let currentPlayer = "X";
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        
+        // Initialize scores from localStorage or defaults
+        let scores = JSON.parse(localStorage.getItem('ticTacToeScores')) || { X: 0, O: 0 };
+        updateScoreDisplay();
+
+        // Winning combinations: 3 rows, 3 columns, 2 diagonals
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        function handleCellAction(index, element) {
+            // Ignore if cell is already taken or game is over
+            if (gameState[index] !== "" || !gameActive) {
+                return;
+            }
+
+            gameState[index] = currentPlayer;
+            element.innerText = currentPlayer;
+            element.classList.add(currentPlayer.toLowerCase(), 'taken');
+            element.setAttribute('aria-label', `Cell ${index + 1} marked by ${currentPlayer}`);
+
+            checkResult();
+        }
+
+        function handleCellClick(event) {
+            const clickedCell = event.target;
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+            handleCellAction(clickedCellIndex, clickedCell);
+        }
+
+        function handleCellKeydown(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                const clickedCell = event.target;
+                const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+                handleCellAction(clickedCellIndex, clickedCell);
+            }
+        }
+
+        function checkResult() {
+            let roundWon = false;
+            let winningLine = [];
+
+            for (let i = 0; i < winningConditions.length; i++) {
+                const [a, b, c] = winningConditions[i];
+                if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                    roundWon = true;
+                    winningLine = [a, b, c];
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                statusDisplay.innerText = `Player ${currentPlayer} Wins!`;
+                gameActive = false;
+                scores[currentPlayer]++;
+                saveScores();
+                updateScoreDisplay();
+                winningLine.forEach(index => {
+                    cells[index].classList.add('winner');
+                });
+                return;
+            }
+
+            // Check for draw: no empty cells left
+            if (!gameState.includes("")) {
+                statusDisplay.innerText = "Game Draw!";
+                gameActive = false;
+                return;
+            }
+
+            // Switch players
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+            statusDisplay.innerText = `Player ${currentPlayer}'s Turn`;
+        }
+
+        function updateScoreDisplay() {
+            scoreXDisplay.innerText = scores.X;
+            scoreODisplay.innerText = scores.O;
+        }
+
+        function saveScores() {
+            localStorage.setItem('ticTacToeScores', JSON.stringify(scores));
+        }
+
+        function resetGame() {
+            gameActive = true;
+            currentPlayer = "X";
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            statusDisplay.innerText = "Player X's Turn";
+            cells.forEach((cell, index) => {
+                cell.innerText = "";
+                cell.classList.remove('x', 'o', 'taken', 'winner');
+                cell.setAttribute('aria-label', `Cell ${index + 1}`);
+            });
+        }
+
+        function clearScores() {
+            scores = { X: 0, O: 0 };
+            saveScores();
+            updateScoreDisplay();
+        }
+
+        cells.forEach(cell => {
+            cell.addEventListener('click', handleCellClick);
+            cell.addEventListener('keydown', handleCellKeydown);
+        });
+        resetBtn.addEventListener('click', resetGame);
+        clearScoresBtn.addEventListener('click', clearScores);
+    </script>
+</body>
+</html>

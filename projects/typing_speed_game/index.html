@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TypeSwift - Typing Speed Game</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary-color: #4a90e2;
+            --text-color: #333;
+            --target-color: #999;
+            --correct-color: #2ecc71;
+            --incorrect-color: #e74c3c;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .stat-box {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-width: 120px;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 0.8rem;
+            color: #777;
+            text-transform: uppercase;
+        }
+
+        .text-display {
+            font-size: 1.5rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            text-align: left;
+            position: relative;
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            min-height: 150px;
+            user-select: none;
+        }
+
+        .char {
+            position: relative;
+            color: var(--target-color);
+            border-bottom: 2px solid transparent;
+            transition: all 0.1s ease;
+        }
+
+        .char.correct {
+            color: var(--correct-color);
+        }
+
+        .char.incorrect {
+            color: var(--incorrect-color);
+            background-color: rgba(231, 76, 60, 0.1);
+        }
+
+        .char.current {
+            border-bottom: 2px solid var(--primary-color);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            50% { border-bottom-color: transparent; }
+        }
+
+        .input-area {
+            width: 100%;
+            height: 0;
+            opacity: 0;
+            position: absolute;
+            z-index: -1;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 1rem;
+        }
+
+        .btn:hover {
+            background-color: #357abd;
+        }
+
+        .results-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .results-modal {
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .results-modal h2 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .results-modal .final-stats {
+            margin: 2rem 0;
+            font-size: 1.5rem;
+        }
+
+        .results-modal .stat-item {
+            margin: 10px 0;
+        }
+
+        .start-hint {
+            margin-top: 1rem;
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>TypeSwift</h1>
+        
+        <div class="stats-container">
+            <div class="stat-box">
+                <span class="stat-label">Time Left</span>
+                <span id="timer">60s</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">WPM</span>
+                <span id="wpm">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Accuracy</span>
+                <span id="accuracy">100%</span>
+            </div>
+        </div>
+
+        <div id="text-display" class="text-display">
+            <!-- Text will be loaded here -->
+        </div>
+
+        <input type="text" id="input-field" class="input-area" autofocus>
+        
+        <button id="reset-btn" class="btn">Restart Game</button>
+        <p class="start-hint">Start typing to begin the challenge!</p>
+    </div>
+
+    <div id="results-overlay" class="results-overlay">
+        <div class="results-modal">
+            <h2>Challenge Complete!</h2>
+            <div class="final-stats">
+                <div class="stat-item">WPM: <span id="final-wpm">0</span></div>
+                <div class="stat-item">Accuracy: <span id="final-accuracy">0%</span></div>
+            </div>
+            <button id="play-again-btn" class="btn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const sentences = [
+            "The quick brown fox jumps over the lazy dog.",
+            "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+            "In the middle of every difficulty lies opportunity.",
+            "Design is not just what it looks like and feels like. Design is how it works.",
+            "The only way to do great work is to love what you do.",
+            "Technology is best when it brings people together.",
+            "Stay hungry, stay foolish.",
+            "Life is what happens when you're busy making other plans.",
+            "Be the change that you wish to see in the world.",
+            "The future belongs to those who believe in the beauty of their dreams.",
+            "Programming is the art of telling another human being what one wants the computer to do.",
+            "JavaScript is a lightweight, interpreted, or just-in-time compiled programming language.",
+            "Web development is a broad term for the work involved in developing a website.",
+            "Simplicity is the ultimate sophistication.",
+            "Experience is the name everyone gives to their mistakes.",
+            "Knowledge is power. Information is liberating. Education is the premise of progress.",
+            "The mind is everything. What you think you become.",
+            "The best way to predict the future is to invent it.",
+            "Do not go where the path may lead, go instead where there is no path and leave a trail.",
+            "The only limit to our realization of tomorrow will be our doubts of today.",
+            "Character is destiny.",
+            "Every artist was first an amateur.",
+            "Action is the foundational key to all success.",
+            "Creativity is intelligence having fun.",
+            "A person who never made a mistake never tried anything new.",
+            "Don't count the days, make the days count.",
+            "Everything you've ever wanted is on the other side of fear.",
+            "Hardships often prepare ordinary people for an extraordinary destiny.",
+            "It always seems impossible until it's done.",
+            "Your time is limited, so don't waste it living someone else's life.",
+            "Dream big and dare to fail."
+        ];
+
+        let timeLeft = 60;
+        let timer = null;
+        let isPlaying = false;
+        let currentText = "";
+        let charIndex = 0;
+        let mistakes = 0;
+        let totalCharsTyped = 0;
+        let totalMistakes = 0;
+
+        const textDisplay = document.getElementById('text-display');
+        const inputField = document.getElementById('input-field');
+        const timerElement = document.getElementById('timer');
+        const wpmElement = document.getElementById('wpm');
+        const accuracyElement = document.getElementById('accuracy');
+        const resultsOverlay = document.getElementById('results-overlay');
+        const finalWpm = document.getElementById('final-wpm');
+        const finalAccuracy = document.getElementById('final-accuracy');
+        const resetBtn = document.getElementById('reset-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        function loadText() {
+            const randomIndex = Math.floor(Math.random() * sentences.length);
+            currentText = sentences[randomIndex];
+            textDisplay.innerHTML = "";
+            currentText.split("").forEach(char => {
+                let span = document.createElement("span");
+                span.classList.add("char");
+                span.innerText = char;
+                textDisplay.appendChild(span);
+            });
+            textDisplay.querySelectorAll(".char")[0].classList.add("current");
+            charIndex = 0;
+            mistakes = 0;
+        }
+
+        function initGame() {
+            loadText();
+            document.addEventListener("keydown", () => {
+                if (!resultsOverlay.style.display || resultsOverlay.style.display === "none") {
+                    inputField.focus();
+                }
+            });
+            textDisplay.addEventListener("click", () => inputField.focus());
+        }
+
+        function startGame() {
+            if (timeLeft > 0) {
+                timer = setInterval(updateTimer, 1000);
+                isPlaying = true;
+            }
+        }
+
+        function updateTimer() {
+            if (timeLeft > 0) {
+                timeLeft--;
+                timerElement.innerText = timeLeft + "s";
+                calculateMetrics();
+            } else {
+                endGame();
+            }
+        }
+
+        function calculateMetrics() {
+            let timeElapsed = 60 - timeLeft;
+            if (timeElapsed === 0) return;
+            
+            const currentTotalTyped = totalCharsTyped + charIndex;
+            const currentTotalMistakes = totalMistakes + mistakes;
+
+            // WPM = (Correct Characters / 5) / (Time elapsed in minutes)
+            let wpm = Math.round(((currentTotalTyped - currentTotalMistakes) / 5) / (timeElapsed / 60));
+            wpm = wpm < 0 || !wpm || wpm === Infinity ? 0 : wpm;
+            wpmElement.innerText = wpm;
+
+            let accuracy = currentTotalTyped === 0 ? 100 : Math.round(((currentTotalTyped - currentTotalMistakes) / currentTotalTyped) * 100);
+            accuracy = accuracy < 0 ? 0 : accuracy;
+            accuracyElement.innerText = accuracy + "%";
+        }
+
+        function endGame() {
+            clearInterval(timer);
+            isPlaying = false;
+            inputField.disabled = true;
+            
+            finalWpm.innerText = wpmElement.innerText;
+            finalAccuracy.innerText = accuracyElement.innerText;
+            resultsOverlay.style.display = "flex";
+        }
+
+        inputField.addEventListener("input", () => {
+            if (!isPlaying && timeLeft > 0 && inputField.value.length > 0) {
+                startGame();
+            }
+
+            const characters = textDisplay.querySelectorAll(".char");
+            let typedVal = inputField.value;
+            let typedChars = typedVal.split("");
+
+            // Update styling for the current sentence
+            characters.forEach((span, index) => {
+                span.classList.remove("correct", "incorrect", "current");
+                
+                if (index < typedChars.length) {
+                    if (typedChars[index] === currentText[index]) {
+                        span.classList.add("correct");
+                    } else {
+                        span.classList.add("incorrect");
+                    }
+                }
+            });
+
+            // Set current cursor position
+            charIndex = typedChars.length;
+            if (charIndex < currentText.length) {
+                characters[charIndex].classList.add("current");
+            }
+
+            // Count mistakes in the current sentence
+            mistakes = 0;
+            typedChars.forEach((char, index) => {
+                if (index < currentText.length && char !== currentText[index]) {
+                    mistakes++;
+                }
+            });
+
+            if (charIndex === currentText.length && currentText.length > 0) {
+                // Completed this sentence, move to next
+                totalCharsTyped += currentText.length;
+                totalMistakes += mistakes;
+                inputField.value = "";
+                loadText();
+            }
+            
+            calculateMetrics();
+        });
+
+        function resetGame() {
+            clearInterval(timer);
+            timeLeft = 60;
+            charIndex = 0;
+            mistakes = 0;
+            totalCharsTyped = 0;
+            totalMistakes = 0;
+            isPlaying = false;
+            inputField.value = "";
+            inputField.disabled = false;
+            timerElement.innerText = "60s";
+            wpmElement.innerText = "0";
+            accuracyElement.innerText = "100%";
+            resultsOverlay.style.display = "none";
+            loadText();
+            inputField.focus();
+        }
+
+        resetBtn.addEventListener("click", resetGame);
+        playAgainBtn.addEventListener("click", resetGame);
+
+        initGame();
+    </script>
+</body>
+</html>

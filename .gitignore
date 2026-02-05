@@ -1,8 +1,0 @@
-__pycache__/
-*.log
-projects/
-projects.json
-*.zip
-UI-sample.png
-tmp/
-node_modules/

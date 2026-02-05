@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click Counter Game</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f3f4f6;
+            --text-color: #1f2937;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.75rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            background: #f9fafb;
+            padding: 1rem;
+            border-radius: 1rem;
+            min-width: 100px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        #click-button {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: 8px solid rgba(79, 70, 229, 0.1);
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+            transition: transform 0.1s, background-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            margin: 1.5rem 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #click-button:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+            transform: scale(1.02);
+        }
+
+        #click-button:active:not(:disabled) {
+            transform: scale(0.92);
+            box-shadow: 0 5px 10px rgba(79, 70, 229, 0.2);
+        }
+
+        #click-button:disabled {
+            background-color: #d1d5db;
+            color: #9ca3af;
+            cursor: not-allowed;
+            box-shadow: none;
+            border-color: transparent;
+        }
+
+        #result-area {
+            margin-top: 1.5rem;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .message {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .final-score {
+            font-size: 2rem;
+            color: var(--primary-color);
+            font-weight: 900;
+            margin: 0.5rem 0;
+        }
+
+        #restart-btn {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 0.875rem 2rem;
+            border-radius: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+        }
+
+        #restart-btn:hover {
+            background-color: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .timer-low {
+            color: #ef4444 !important;
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-1px); }
+            50% { transform: translateX(1px); }
+            75% { transform: translateX(-1px); }
+            100% { transform: translateX(0); }
+        }
+
+        .score-pop {
+            animation: scorePop 0.1s ease-out;
+        }
+
+        @keyframes scorePop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(79, 70, 229, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Click Master</h1>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <span class="stat-label">Time</span>
+                <span id="timer">10.0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">High Score</span>
+                <span id="high-score">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Score</span>
+                <span id="score">0</span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: center;">
+            <button id="click-button" class="pulse">START</button>
+        </div>
+
+        <div id="result-area" class="hidden">
+            <div id="performance-content"></div>
+            <button id="restart-btn">Play Again</button>
+        </div>
+        
+        <div id="hint-text" style="color: #9ca3af; font-size: 0.875rem; margin-top: 1rem;">
+            Press Space or Click to begin!
+        </div>
+    </div>
+
+    <script>
+        const clickBtn = document.getElementById('click-button');
+        const restartBtn = document.getElementById('restart-btn');
+        const timerDisplay = document.getElementById('timer');
+        const scoreDisplay = document.getElementById('score');
+        const highScoreDisplay = document.getElementById('high-score');
+        const resultArea = document.getElementById('result-area');
+        const performanceContent = document.getElementById('performance-content');
+        const hintText = document.getElementById('hint-text');
+
+        let score = 0;
+        let timeLeft = 10.0;
+        let timerInterval = null;
+        let gameActive = false;
+        let gameStarted = false;
+        let highScore = parseInt(localStorage.getItem('clickerHighScore')) || 0;
+
+        // Initialize high score display
+        highScoreDisplay.textContent = highScore;
+
+        function updateDisplay() {
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timeLeft.toFixed(1);
+            
+            if (timeLeft <= 3 && timeLeft > 0) {
+                timerDisplay.classList.add('timer-low');
+            } else {
+                timerDisplay.classList.remove('timer-low');
+            }
+        }
+
+        function startGame() {
+            gameStarted = true;
+            gameActive = true;
+            clickBtn.textContent = 'CLICK!';
+            clickBtn.classList.remove('pulse');
+            hintText.classList.add('hidden');
+            
+            const startTime = Date.now();
+            const duration = 10000;
+
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                timeLeft = Math.max(0, (duration - elapsed) / 1000);
+                updateDisplay();
+
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 50);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            gameActive = false;
+            clickBtn.disabled = true;
+            clickBtn.textContent = 'DONE';
+            timerDisplay.classList.remove('timer-low');
+            
+            resultArea.classList.remove('hidden');
+            
+            // Handle high score
+            let isNewHighScore = false;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('clickerHighScore', highScore);
+                highScoreDisplay.textContent = highScore;
+                isNewHighScore = true;
+            }
+
+            let message = '';
+            let color = '#4f46e5';
+            
+            if (score < 30) {
+                message = "Keep practicing! 🐢";
+                color = "#6b7280";
+            } else if (score < 50) {
+                message = "Not bad! 🐇";
+                color = "#10b981";
+            } else if (score < 75) {
+                message = "Fast fingers! 🔥";
+                color = "#f59e0b";
+            } else {
+                message = "Legendary clicking speed! ⚡";
+                color = "#ef4444";
+            }
+            
+            performanceContent.innerHTML = `
+                ${isNewHighScore ? '<div style="color: #f59e0b; font-weight: 900; margin-bottom: 0.5rem; animation: scorePop 0.5s infinite alternate;">⭐ NEW HIGH SCORE! ⭐</div>' : ''}
+                <div class="message" style="color: ${color}">${message}</div>
+                <div class="final-score">${score} Clicks</div>
+            `;
+        }
+
+        function handleButtonClick(e) {
+            if (timeLeft <= 0 || clickBtn.disabled) return;
+            
+            if (e && e.cancelable) e.preventDefault();
+
+            if (!gameStarted) {
+                startGame();
+            }
+
+            if (gameActive) {
+                score++;
+                
+                // Score pop effect
+                scoreDisplay.classList.remove('score-pop');
+                void scoreDisplay.offsetWidth; // Trigger reflow
+                scoreDisplay.classList.add('score-pop');
+                
+                updateDisplay();
+                
+                // Button effect
+                clickBtn.style.transform = 'scale(0.92)';
+                setTimeout(() => {
+                    if (gameActive) clickBtn.style.transform = '';
+                }, 50);
+            }
+        }
+
+        function restartGame() {
+            score = 0;
+            timeLeft = 10.0;
+            gameActive = false;
+            gameStarted = false;
+            clickBtn.disabled = false;
+            clickBtn.textContent = 'START';
+            clickBtn.classList.add('pulse');
+            clickBtn.style.transform = '';
+            resultArea.classList.add('hidden');
+            hintText.classList.remove('hidden');
+            updateDisplay();
+        }
+
+        // Pointer/Click handling
+        clickBtn.addEventListener('mousedown', handleButtonClick);
+        clickBtn.addEventListener('touchstart', (e) => {
+            if (e.cancelable) e.preventDefault();
+            handleButtonClick(e);
+        }, { passive: false });
+
+        restartBtn.addEventListener('click', restartGame);
+
+        // Keyboard interaction
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            if (e.code === 'Space' || e.code === 'Enter') {
+                if (!clickBtn.disabled) {
+                    e.preventDefault();
+                    handleButtonClick(e);
+                } else if (!resultArea.classList.contains('hidden')) {
+                    e.preventDefault();
+                    restartGame();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
