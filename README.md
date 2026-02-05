@@ -4,21 +4,25 @@ An advanced orchestrator for running multiple Gemini CLI agents in parallel with
 
 ## Table of Contents
 1. [Overview](#overview)
-2. [Key Features](#key-features)
-3. [Architecture](#architecture)
-4. [Components](#components)
+2. [UI Sample](#ui-sample)
+3. [Key Features](#key-features)
+4. [Architecture](#architecture)
+5. [Components](#components)
     - [The Controller](#the-controller)
     - [The Critic Agent](#the-critic-agent)
     - [Web Dashboard](#web-dashboard)
-5. [Installation](#installation)
-6. [Usage](#usage)
-7. [Self-Learning Loop](#self-learning-loop)
-8. [Skill Integration](#skill-integration)
+6. [Installation](#installation)
+7. [Usage](#usage)
+8. [Self-Learning Loop](#self-learning-loop)
+9. [Skill Integration](#skill-integration)
 
 ---
 
 ## Overview
 This project provides a robust framework for automating complex software engineering tasks using the Gemini CLI. It allows users to define multiple tasks, execute them in isolated environments, and automatically learn from the outcomes to improve future performance through a closed-loop feedback system.
+
+## UI Sample
+![Dashboard UI](UI-sample.png)
 
 ## Key Features
 - **Parallel Execution:** Run multiple agents simultaneously with configurable worker limits.
