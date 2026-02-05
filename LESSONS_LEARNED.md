@@ -7,6 +7,15 @@ I will now read the `projects.json` file to see how the tasks are structured and
 3.  **Inefficient Context Usage:** Agents frequently tried to "implement the entire game in a single file" in one turn. This creates massive output tokens, which consumes quota rapidly and makes the agent more vulnerable to context window limits and formatting errors during large-scale `replace` or `write_file` operations.
 4.  **Resume Inefficiency:** When agents resumed a project, they often spent multiple turns re-discovering the state (listing directories, reading files sequentially) before making a move. This repetitive overhead under rate-limited conditions often led to hitting the quota before any productive work was done.
 
+## Technical Debt & Solutions
+
+| Failure | Root Cause | Solution |
+| :--- | :--- | :--- |
+| **False Failures** | Agents finished work but hit 429/Timeout during final summary, causing non-zero exit code. | **Integrity Verification**: Added `verify_integrity()` to check for valid `index.html` regardless of process exit status. |
+| **Arg List Too Long** | Passing massive logs as a shell argument (`gemini -p "..."`) hit OS limits. | **Stdin Stream**: Updated `critic_agent.py` to pipe prompts via `stdin`, bypassing shell argument limits. |
+| **Silent Completion** | Agents finished but didn't create a `.done` marker before crashing. | **Post-Mortem Repair**: Updated Critic Agent to proactively create `.done` files if integrity checks pass. |
+| **Replace Mismatches** | Parallel runs caused files to change, making cached `replace` strings invalid. | **Read-Before-Replace**: Updated sub-agent instructions to force a `read_file` immediately before any `replace` call. |
+
 ## Lessons for Controller
 
 1.  **Global Backoff Strategy:** The python orchestrator should implement a global "Cool Down" period. If any agent hits a 429, *all* agents should be paused for 5-10 seconds to allow the shared quota to reset completely, rather than letting them individually beat against the limit.
