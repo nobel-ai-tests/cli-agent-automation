@@ -1,9 +1,114 @@
 [
   {
+    "name": "catch_the_falling_objects",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html"
+    ]
+  },
+  {
+    "name": "click_counter_game",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html"
+    ]
+  },
+  {
     "name": "example-project",
     "files": [
-      "main.py",
-      "README.md"
+      "README.md",
+      "main.py"
+    ]
+  },
+  {
+    "name": "flappy_bird_clone",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html"
+    ]
+  },
+  {
+    "name": "guess_the_number",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html"
+    ]
+  },
+  {
+    "name": "maze_escape_game",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html",
+      "script.js",
+      "style.css"
+    ]
+  },
+  {
+    "name": "memory_matching_game",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html"
+    ]
+  },
+  {
+    "name": "pong_game",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html",
+      "script.js",
+      "style.css"
+    ]
+  },
+  {
+    "name": "rock_paper_scissors",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html",
+      "script.js",
+      "style.css"
+    ]
+  },
+  {
+    "name": "snake_game",
+    "files": [
+      ".done",
+      "README.md",
+      "game.js",
+      "index.html"
+    ]
+  },
+  {
+    "name": "tic_tac_toe",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html"
+    ]
+  },
+  {
+    "name": "typing_speed_game",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html"
+    ]
+  },
+  {
+    "name": "whack_a_mole",
+    "files": [
+      ".done",
+      "README.md",
+      "index.html",
+      "script.js",
+      "style.css"
     ]
   }
 ]
