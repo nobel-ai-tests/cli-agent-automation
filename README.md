@@ -136,11 +136,37 @@ The following applications have been successfully generated and refined:
 The loop is fully automated. Every run of the controller concludes with a call to the Critic Agent. This ensures that every failure is analyzed and converted into a persistent instruction for the next generation of agents.
 
 ## Skill Integration
-The "Parallel Orchestrator Learning" workflow is encapsulated in a Gemini CLI skill.
-Activate it for expert guidance:
+
+The entire automation workflow is formalized into a Gemini CLI skill: `parallel-orchestrator-learning`. This skill allows the Gemini CLI to "understand" and execute the orchestration process natively.
+
+
+
+### How the Skill Works
+
+The skill encapsulates the logic of this repository into a reusable package:
+
+- **Expert Guidance**: Activating the skill provides the agent with specific instructions on how to manage parallel tasks and the learning loop.
+
+- **Asset Bundling**: It includes `controller.py` and `critic_agent.py` as internal assets, ensuring the core logic is always available when the skill is active.
+
+- **Context Injection**: The skill's instructions guide the agent to use the `subagent_instructions.txt` file as a persistent memory of "best practices."
+
+
+
+### Activating the Skill
+
+To use this specialized workflow within a Gemini CLI session, run:
+
 ```bash
+
 activate_skill("parallel-orchestrator-learning")
+
 ```
 
+Once activated, the agent will follow the established procedural guidance for running projects, performing integrity checks, and synthesizing lessons learned.
+
+
+
 ---
+
 *Created by Gemini CLI*
