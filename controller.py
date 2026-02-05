@@ -1,0 +1,277 @@
+import os
+import json
+import subprocess
+import sys
+import argparse
+import re
+import time
+import random
+import threading
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+from rich.live import Live
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+
+# Configuration
+PROJECTS_FILE = "projects.json"
+PROJECTS_DIR = "projects"
+LOG_FILE = "controller.log"
+EXECUTION_TIMEOUT = 300  # 5 minutes per agent
+MAX_BACKOFF = 60
+
+# Shared state for UI and concurrency
+project_status = {}
+concurrency_semaphore = None
+current_max_workers = 2
+concurrency_lock = threading.Lock()
+
+def log(message):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG_FILE, "a") as f:
+        f.write(f"[{timestamp}] {message}\n")
+
+def is_project_complete(project_dir):
+    """Check if the project has already been completed successfully."""
+    return os.path.exists(os.path.join(project_dir, ".done"))
+
+def mark_project_done(project_dir):
+    """Mark the project as completed successfully."""
+    with open(os.path.join(project_dir, ".done"), "w") as f:
+        f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+def extract_step(line):
+    """Try to extract a concise 'current step' from the agent's output."""
+    line = line.strip()
+    # Patterns common in Gemini CLI output when planning/acting
+    patterns = [
+        r"(I will\s+.*?\.)",
+        r"(I'll\s+.*?\.)",
+        r"(Creating\s+.*?\.)",
+        r"(Reading\s+.*?\.)",
+        r"(Writing\s+.*?\.)",
+        r"(Running\s+.*?\.)"
+    ]
+    for p in patterns:
+        match = re.search(p, line, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return None
+
+def check_rate_limit(line):
+    """Check if the line indicates a rate limit or quota exhaustion."""
+    rate_limit_patterns = [
+        r"exhausted your capacity",
+        r"rate limit reached",
+        r"quota exceeded",
+        r"429 Too Many Requests"
+    ]
+    for p in rate_limit_patterns:
+        if re.search(p, line, re.IGNORECASE):
+            return True
+    return False
+
+def adjust_concurrency(delta):
+    """Adjust the number of concurrent agents."""
+    global current_max_workers, concurrency_semaphore
+    with concurrency_lock:
+        new_val = max(1, current_max_workers + delta)
+        if new_val != current_max_workers:
+            log(f"Adjusting concurrency: {current_max_workers} -> {new_val}")
+            if delta > 0:
+                for _ in range(new_val - current_max_workers):
+                    concurrency_semaphore.release()
+            else:
+                for _ in range(current_max_workers - new_val):
+                    # We don't block here, just try to acquire to reduce future capacity
+                    concurrency_semaphore.acquire(blocking=False)
+            current_max_workers = new_val
+
+INSTRUCTIONS_FILE = "subagent_instructions.txt"
+
+def get_subagent_instructions():
+    if os.path.exists(INSTRUCTIONS_FILE):
+        with open(INSTRUCTIONS_FILE, "r") as f:
+            return f.read().strip()
+    return ""
+
+def run_agent(project, update_ui_cb, max_retries=5):
+    name = project["name"]
+    task = project["task"]
+    project_dir = os.path.join(PROJECTS_DIR, name)
+    os.makedirs(project_dir, exist_ok=True)
+    
+    if is_project_complete(project_dir):
+        log(f"Project {name} already complete. Skipping.")
+        project_status[name] = {"status": "Done", "step": "Skipped (Already Complete)", "progress": 100}
+        update_ui_cb()
+        return
+
+    project_status[name] = {"status": "Starting", "step": "Initializing...", "progress": 0}
+    update_ui_cb()
+
+    # Load custom instructions for the sub-agent
+    extra_instructions = get_subagent_instructions()
+    instruction_block = f"\n\nIMPORTANT GUIDELINES:\n{extra_instructions}" if extra_instructions else ""
+
+    # We add a preamble to the prompt to encourage planning
+    full_prompt = f"First, create a simple README.md outlining your plan. Then: {task}{instruction_block}"
+    command = ["gemini", "--yolo", "-p", full_prompt]
+    
+    retries = 0
+    while retries <= max_retries:
+        with concurrency_semaphore:
+            log(f"Starting agent for project: {name} (Attempt {retries + 1})")
+            project_status[name]["status"] = "Running"
+            project_status[name]["step"] = f"Attempt {retries + 1}..."
+            update_ui_cb()
+
+            try:
+                start_time = time.time()
+                process = subprocess.Popen(
+                    command,
+                    cwd=project_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+                
+                is_rate_limited = False
+                
+                # Stream stdout to find steps and rate limits
+                # Note: This is still potentially blocking if the process produces no output
+                # A more robust way would be using threads or non-blocking reads.
+                # For now, we'll check the time inside the loop.
+                for line in process.stdout:
+                    if time.time() - start_time > EXECUTION_TIMEOUT:
+                        process.kill()
+                        log(f"[{name}] Timed out after {EXECUTION_TIMEOUT}s")
+                        project_status[name]["status"] = "Timed Out"
+                        update_ui_cb()
+                        break
+
+                    line_stripped = line.strip()
+                    log(f"[{name}] STDOUT: {line_stripped}")
+                    
+                    if check_rate_limit(line_stripped):
+                        is_rate_limited = True
+                        log(f"[{name}] Rate limit detected in STDOUT.")
+
+                    step = extract_step(line_stripped)
+                    if step:
+                        project_status[name]["step"] = step[:60] + "..." if len(step) > 60 else step
+                        project_status[name]["progress"] = min(95, project_status[name]["progress"] + 10)
+                        update_ui_cb()
+
+                process.wait(timeout=10) # Small grace period for final cleanup
+                
+                # Read stderr for logs and rate limits
+                stderr_output = process.stderr.read()
+                if stderr_output:
+                    log(f"[{name}] STDERR: {stderr_output.strip()}")
+                    if check_rate_limit(stderr_output):
+                        is_rate_limited = True
+                        log(f"[{name}] Rate limit detected in STDERR.")
+
+                if project_status[name]["status"] == "Timed Out":
+                    # If we already marked as Timed Out in the loop
+                    pass
+                elif is_rate_limited or process.returncode != 0:
+                    if is_rate_limited:
+                        adjust_concurrency(-1) # Reduce concurrency on rate limit
+                        retries += 1
+                        if retries <= max_retries:
+                            wait_time = min(MAX_BACKOFF, (2 ** retries) + random.random() * 5)
+                            log(f"[{name}] Rate limited. Retrying in {wait_time:.2f}s...")
+                            project_status[name]["status"] = "Retrying"
+                            project_status[name]["step"] = f"Rate limited. Waiting {wait_time:.2f}s"
+                            update_ui_cb()
+                            time.sleep(wait_time)
+                            continue
+                    
+                    project_status[name]["status"] = "Failed"
+                    project_status[name]["step"] = f"Exit Code: {process.returncode}"
+                else:
+                    project_status[name]["status"] = "Done"
+                    project_status[name]["step"] = "Task Completed Successfully"
+                    project_status[name]["progress"] = 100
+                    mark_project_done(project_dir)
+                    break # Success
+                    
+                update_ui_cb()
+                break # If not retrying, break loop
+                    
+            except subprocess.TimeoutExpired:
+                process.kill()
+                log(f"[{name}] Subprocess timed out.")
+                project_status[name]["status"] = "Timed Out"
+                update_ui_cb()
+                break
+            except Exception as e:
+                log(f"Error running agent for {name}: {str(e)}")
+                project_status[name]["status"] = "Error"
+                project_status[name]["step"] = str(e)[:50]
+                update_ui_cb()
+                break
+
+def generate_table():
+    table = Table(title="[bold blue]Gemini CLI Sub-Agent Dashboard[/bold blue]")
+    table.add_column("Project", style="cyan", no_wrap=True)
+    table.add_column("Status", style="magenta")
+    table.add_column("Current Step", style="green")
+    table.add_column("Progress", style="yellow")
+    table.add_column("Limit", style="red")
+
+    for name, info in project_status.items():
+        prog = info["progress"]
+        table.add_row(
+            name, 
+            info["status"], 
+            info["step"], 
+            f"[{'#' * (prog // 10)}{'.' * (10 - prog // 10)}] {prog}%",
+            str(current_max_workers)
+        )
+    return table
+
+def main():
+    global current_max_workers, concurrency_semaphore
+    parser = argparse.ArgumentParser(description="Parallel Gemini CLI Controller")
+    parser.add_argument("--max-workers", type=int, default=2, help="Maximum number of simultaneous agents")
+    args = parser.parse_args()
+
+    current_max_workers = args.max_workers
+    concurrency_semaphore = threading.Semaphore(current_max_workers)
+
+    if not os.path.exists(PROJECTS_FILE):
+        print(f"Error: {PROJECTS_FILE} not found.")
+        sys.exit(1)
+        
+    with open(PROJECTS_FILE, "r") as f:
+        projects = json.load(f)
+        
+    os.makedirs(PROJECTS_DIR, exist_ok=True)
+    
+    # Initialize statuses
+    for p in projects:
+        project_status[p["name"]] = {"status": "Pending", "step": "Waiting in queue...", "progress": 0}
+
+    with Live(generate_table(), refresh_per_second=4) as live:
+        def update_ui():
+            live.update(generate_table())
+
+        # ThreadPool size doesn't strictly matter as much now because of the semaphore
+        with ThreadPoolExecutor(max_workers=max(10, args.max_workers)) as executor:
+            futures = [executor.submit(run_agent, p, update_ui) for p in projects]
+            for future in futures:
+                future.result()
+
+    # After all projects are done, run the critic agent
+    print("\nExecuting Post-Mortem Analysis...")
+    subprocess.run(["python3", "critic_agent.py"])
+
+if __name__ == "__main__":
+    if os.path.exists(LOG_FILE):
+        os.remove(LOG_FILE)
+    main()

@@ -1,0 +1,20 @@
+# TODO List: Controller Evolution & Self-Learning Loop
+
+- [x] **Phase 1: Robustness & Adaptive Throttling** `[backend]`
+  - [x] Implement `check_rate_limit` function to parse agent output for quota/rate-limit errors `[backend]`
+  - [x] Refactor `run_agent` to include a retry loop with exponential backoff `[backend]`
+  - [x] Implement dynamic concurrency adjustment to reduce `max_workers` upon frequent rate limits `[backend]`
+  - [x] Add `EXECUTION_TIMEOUT` to `run_agent` to prevent indefinite hanging `[backend]`
+  - [x] Implement `is_project_complete` to avoid redundant work (Idempotency) `[backend]`
+- [x] **Phase 2: Post-Mortem & Self-Learning Loop** `[automation]`
+  - [x] Create `critic_agent.py` to analyze `controller.log` and project outputs `[automation]`
+  - [x] Add integrity checks to verify existence and basic validity of `index.html`, `style.css`, etc. `[test]`
+  - [x] Implement `synthesize_lessons` function using Gemini to generate `LESSONS_LEARNED.md` `[automation]`
+  - [x] Create `subagent_instructions.txt` and update `controller.py` to inject these instructions into every prompt `[backend]`
+- [ ] **Phase 3: Skill Integration** `[documentation]`
+  - [x] Activate `skill-creator` and formalize the orchestration workflow into a new skill `[documentation]`
+  - [x] Document the self-learning loop maintenance in `GEMINI.md` `[documentation]`
+- [ ] **Phase 4: Verification** `[test]`
+  - [ ] Execute the 10 games in `projects.json` as a stress test `[automation]`
+  - [ ] Audit `LESSONS_LEARNED.md` to ensure it captured useful insights from the run `[test]`
+  - [ ] Verify that `subagent_instructions.txt` was correctly updated and applied `[test]`

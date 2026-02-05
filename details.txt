@@ -1,0 +1,1 @@
+using gemini cli from python - by using a gemini cli agent as a controller and n number of subagents to control based on a list of projects detailed in an input file located in the current directory

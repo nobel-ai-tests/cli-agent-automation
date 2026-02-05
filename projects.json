@@ -1,0 +1,50 @@
+[
+  {
+    "name": "click_counter_game",
+    "task": "Create a simple click counter game using HTML, CSS, and JavaScript. Display a large button that the player can click to increase a score counter. The game should run for a fixed time limit (e.g., 10 seconds) using a countdown timer. When the time runs out, disable the button and show the final score, along with a message based on performance. Style the layout so the button and score are centered on the page."
+  },
+  {
+    "name": "guess_the_number",
+    "task": "Build a number guessing game where the computer randomly selects a number between 1 and 100. Provide an input field and submit button for the player to enter guesses. After each guess, display feedback such as 'Too high', 'Too low', or 'Correct'. Track the number of attempts and display a success message when the player wins. Include basic styling and input validation."
+  },
+  {
+    "name": "rock_paper_scissors",
+    "task": "Create a Rock, Paper, Scissors game where the player chooses an option by clicking a button. The computer randomly selects its choice. Display both choices on the screen and determine the winner based on game rules. Keep track of player and computer scores across multiple rounds. Add simple visual feedback and reset functionality."
+  },
+  {
+    "name": "tic_tac_toe",
+    "task": "Develop a two-player Tic-Tac-Toe game using a 3x3 grid. Allow players to alternate turns between 'X' and 'O' by clicking cells. Implement logic to detect win conditions and draws, and display the game result. Include a reset button to start a new game. Style the board with clear borders and centered alignment."
+  },
+  {
+    "name": "whack_a_mole",
+    "task": "Create a Whack-a-Mole game using a grid of clickable holes. Randomly display a 'mole' in one hole at a time for a short duration. Increase the player's score when the mole is clicked. Run the game for a fixed amount of time and show the final score when the timer ends. Use CSS for positioning and simple animations."
+  },
+  {
+    "name": "memory_matching_game",
+    "task": "Build a memory card matching game with a grid of face-down cards. Each card should have a matching pair. When a card is clicked, reveal its value. If two revealed cards match, keep them visible; otherwise, flip them back after a short delay. Track the number of moves and display a completion message when all pairs are matched."
+  },
+  {
+    "name": "snake_game",
+    "task": "Implement a classic Snake game using a grid-based layout or HTML canvas. Control the snake using keyboard arrow keys. The snake should grow longer when it eats food placed randomly on the grid. End the game if the snake collides with the walls or itself. Display the current score and provide a restart option."
+  },
+  {
+    "name": "pong_game",
+    "task": "Create a simple Pong game with a paddle controlled by the player and a ball that bounces around the screen. Use keyboard input to move the paddle up and down. Implement basic collision detection between the ball, walls, and paddle. Track and display the score. Optionally add a simple AI paddle on the opposite side."
+  },
+  {
+    "name": "flappy_bird_clone",
+    "task": "Develop a Flappy Bird–style game where the player controls a character that moves upward when a key is pressed and falls due to gravity otherwise. Generate obstacles at regular intervals and detect collisions. Increment the score each time the player successfully passes an obstacle. Show a game-over screen with the final score and a restart button."
+  },
+  {
+    "name": "typing_speed_game",
+    "task": "Create a typing speed game that displays a random word or sentence for the player to type. Capture keyboard input and compare it against the target text in real time. Measure typing speed (words per minute) and accuracy over a fixed time period. Display results at the end of the game and allow the player to restart with new text."
+  },
+  {
+    "name": "maze_escape_game",
+    "task": "Create a simple maze escape game using HTML, CSS, and JavaScript. Display a top-down maze layout using a grid of div elements or an HTML canvas. The player controls a character using arrow keys and must navigate from a start position to an exit without crossing walls. Implement collision detection to prevent movement through walls and display a success message when the exit is reached. Include a reset button to restart the maze."
+  },
+  {
+    "name": "catch_the_falling_objects",
+    "task": "Build a catch-the-falling-objects game where items fall from the top of the screen at random horizontal positions. The player controls a basket or character at the bottom of the screen using left and right arrow keys. Increase the score when an object is successfully caught and end the game if too many objects are missed. Gradually increase the falling speed to raise difficulty and display the final score on game over."
+  }
+]
