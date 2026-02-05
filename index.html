@@ -63,7 +63,8 @@
     <script>
         async function loadProjects() {
             try {
-                const response = await fetch('projects_manifest.json');
+                // Cache busting: append timestamp to ensure we get the latest manifest
+                const response = await fetch('projects_manifest.json?t=' + Date.now());
                 const projects = await response.json();
                 const container = document.getElementById('projects-container');
                 container.innerHTML = '';
