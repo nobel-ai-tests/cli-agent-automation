@@ -1,36 +1,48 @@
-# Gemini CLI Controller Documentation
+# Gemini CLI Controller Technical Documentation
 
 ## Architecture Overview
-The controller is a Python-based orchestrator designed to run multiple Gemini CLI agents in parallel. It handles project isolation, real-time progress tracking, and centralized logging.
+The controller is a Python-based orchestrator designed for high-concurrency, long-running agent tasks. It prioritizes robustness, idempotency, and automated recovery.
 
-### Core Components:
-- **Parallelism:** Uses `concurrent.futures.ThreadPoolExecutor` to manage a pool of sub-agents.
-- **Agent Execution:** Each sub-agent is invoked via `subprocess.Popen` running `gemini --yolo`.
-- **UI Dashboard:** Utilizes the `rich` library (`Live` and `Table`) to display a real-time status of all active and pending projects.
-- **Step Extraction:** Employs regex patterns to parse the agent's "thought process" and update the "Current Step" column in the dashboard.
-- **Isolation:** Each project is executed within its own subdirectory under `projects/`.
+### Concurrency & Throttling
+- **Dynamic Semaphore:** Uses a `threading.Semaphore` combined with a `concurrency_lock` to adjust `max_workers` in real-time.
+- **Adaptive Backoff:** When a `RateLimit` (429) is detected in STDOUT or STDERR, the controller:
+    1. Reduces the current concurrency limit by 1.
+    2. Implements an exponential backoff (2^n + jitter) for the affected project.
+- **Global Timeout:** Enforces `EXECUTION_TIMEOUT` (default 300s) per agent to prevent hanging sub-processes.
 
-### Execution Flow:
-1. Reads `projects.json` for task definitions.
-2. Initializes the `rich` dashboard.
-3. Submits tasks to the thread pool (default `max_workers=2`).
-4. Streams `stdout` to detect progress steps and logs all activity to `controller.log`.
-5. Updates project status to "Done" or "Failed" based on the exit code.
+### Execution Engine (`run_agent`)
+- **Prompts:** Injects a standard `system_guidelines` block (loop prevention, resumption context) and `subagent_instructions.txt` (learned lessons) into every prompt.
+- **Resumption Context:** Automatically detects existing files and provides the first 1000 characters of `README.md` to the agent as context for resuming work.
+- **Telemetry:** Logs every line of output to `controller.log` as a JSON object:
+  ```json
+  {"timestamp": "...", "level": "INFO", "project": "name", "message": "..."}
+  ```
 
-### Self-Learning Loop
-The controller includes an automated post-mortem process:
-1. **Critic Agent:** After execution, `critic_agent.py` analyzes the `controller.log` and the contents of the `projects/` directory.
-2. **Lesson Synthesis:** It uses Gemini to identify failures (like rate limits or missing files) and successes.
-3. **Instruction Injection:** Actionable lessons for sub-agents are saved to `subagent_instructions.txt`, which the controller automatically injects into the prompt of every future agent run.
+### Completion & Integrity
+The controller employs a "Defense in Depth" approach to marking tasks complete:
+1. **Exit Code:** Standard completion on `returncode == 0`.
+2. **Post-Process Verification:** If a process fails or times out, `verify_integrity()` checks if `index.html` exists and contains valid `<body>` content > 100 bytes.
+3. **Idempotency:** Checks for a `.done` file in the project directory to skip completed work on subsequent runs.
 
-### Parallel Orchestrator Learning Skill
-The orchestration workflow has been formalized into a Gemini CLI skill: `parallel-orchestrator-learning`.
-- **Installation:** Already installed in the workspace scope.
-- **Activation:** Use `activate_skill("parallel-orchestrator-learning")` to get guidance on running parallel tasks with a learning loop.
-- **Maintenance:** To update the skill, modify the files in `parallel-orchestrator-learning/` and re-package/re-install.
+### Self-Learning Loop (`critic_agent.py`)
+Triggered automatically after the `ThreadPoolExecutor` finishes.
+1. **Integrity Audit:** Re-runs validation on all projects.
+2. **Proactive Repair:** If a project is valid but lacks a `.done` marker (due to a crash or rate limit at the very end), the critic creates it.
+3. **Prompt Synthesis:** Sends the entire log analysis and integrity report to Gemini via `stdin` to generate new `subagent_instructions.txt`.
 
-### Usage:
+### Skill: `parallel-orchestrator-learning`
+A formalized Gemini CLI skill that bundles these scripts and logic.
+- **Location:** `.gemini/skills/parallel-orchestrator-learning/`
+- **Assets:** Includes `controller.py` and `critic_agent.py` as internal resources.
+
+### Usage
 ```bash
-python3 controller.py --max-workers <count>
+# Run with 2 workers (default)
+python3 controller.py
+
+# Run with increased concurrency
+python3 controller.py --max-workers 5
 ```
-This will run all projects in `projects.json`, handle retries, and trigger the learning loop at the end.
+
+### Manifest Generation
+`generate_manifest.py` recursively scans the `projects/` directory to create a `projects_manifest.json` for the web dashboard, ensuring that only valid project assets are displayed.

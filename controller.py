@@ -57,7 +57,22 @@ def log(message, level="INFO", project=None):
 
 def is_project_complete(project_dir):
     """Check if the project has already been completed successfully."""
-    return os.path.exists(os.path.join(project_dir, ".done"))
+    if os.path.exists(os.path.join(project_dir, ".done")):
+        return True
+    return verify_integrity(project_dir)
+
+def verify_integrity(project_dir):
+    """Check if the project looks complete (has index.html with a body)."""
+    index_path = os.path.join(project_dir, "index.html")
+    if os.path.exists(index_path):
+        try:
+            with open(index_path, "r") as f:
+                content = f.read().lower()
+                if "<body>" in content and len(content) > 100:
+                    return True
+        except:
+            pass
+    return False
 
 def mark_project_done(project_dir):
     """Mark the project as completed successfully."""
@@ -139,10 +154,36 @@ def run_agent(project, update_ui_cb, max_retries=5):
 
     # Load custom instructions for the sub-agent
     extra_instructions = get_subagent_instructions()
-    instruction_block = f"\n\nIMPORTANT GUIDELINES:\n{extra_instructions}" if extra_instructions else ""
+    
+    # Loop prevention and resumption instructions
+    system_guidelines = """
+- DO NOT get stuck in an infinite loop. If you are repeating the same action or hitting the same error, stop, analyze why, and try a different approach.
+- If files already exist, ANALYZE them first and CONTINUE the work. Do not overwrite everything unless necessary.
+- ALWAYS check for a README.md or PLAN.md to understand the previous state.
+"""
+    instruction_block = f"\n\nIMPORTANT GUIDELINES:\n{system_guidelines}\n{extra_instructions}"
 
-    # We add a preamble to the prompt to encourage planning
-    full_prompt = f"First, create a simple README.md outlining your plan. Then: {task}{instruction_block}"
+    # Check for existing files to determine if we are resuming
+    existing_files = [f for f in os.listdir(project_dir) if f not in [".done", ".gemini", "__pycache__", ".git"]]
+    is_resume = len(existing_files) > 0
+    
+    if is_resume:
+        log(f"Resuming project. Existing files: {existing_files}", project=name)
+        resumption_context = f"Current directory contains: {', '.join(existing_files)}. "
+        # Try to read README.md for context
+        if "README.md" in existing_files:
+            try:
+                with open(os.path.join(project_dir, "README.md"), "r") as f:
+                    readme_content = f.read(1000) # Get first 1000 chars
+                    resumption_context += f"\nLast known plan (README.md excerpt):\n{readme_content}\n"
+            except:
+                pass
+        
+        full_prompt = f"RESUME WORK: You were working on: {task}. {resumption_context}\n\nContinue from where you left off. Identify what is missing or broken and fix it. {instruction_block}"
+    else:
+        # We add a preamble to the prompt to encourage planning
+        full_prompt = f"START NEW PROJECT: {task}. First, create a simple README.md outlining your plan. Then implement the task. {instruction_block}"
+
     command = ["gemini", "--yolo", "-p", full_prompt]
     
     retries = 0
@@ -185,7 +226,7 @@ def run_agent(project, update_ui_cb, max_retries=5):
 
                     step = extract_step(line_stripped)
                     if step:
-                        project_status[name]["step"] = step[:60] + "..." if len(step) > 60 else step
+                        project_status[name]["step"] = step[:100] + "..." if len(step) > 100 else step
                         project_status[name]["progress"] = min(95, project_status[name]["progress"] + 10)
                         update_ui_cb()
 
@@ -200,8 +241,24 @@ def run_agent(project, update_ui_cb, max_retries=5):
                         log("Rate limit detected in STDERR.", level="WARNING", project=name)
 
                 if project_status[name]["status"] == "Timed Out":
-                    pass
+                    # Even on timeout, check if it's actually done
+                    if verify_integrity(project_dir):
+                        project_status[name]["status"] = "Done"
+                        project_status[name]["step"] = "Task Completed (Detected after Timeout)"
+                        project_status[name]["progress"] = 100
+                        mark_project_done(project_dir)
+                        log("Task completed (detected after timeout).", project=name)
+                        break
                 elif is_rate_limited or process.returncode != 0:
+                    # Check if it's actually done despite the error/rate limit
+                    if verify_integrity(project_dir):
+                        project_status[name]["status"] = "Done"
+                        project_status[name]["step"] = "Task Completed (Detected after Error)"
+                        project_status[name]["progress"] = 100
+                        mark_project_done(project_dir)
+                        log("Task completed (detected after error).", project=name)
+                        break
+
                     error_type = "RateLimit" if is_rate_limited else "FatalError"
                     log(f"Agent failed. Type: {error_type}, Code: {process.returncode}", level="ERROR", project=name)
                     
@@ -244,12 +301,12 @@ def run_agent(project, update_ui_cb, max_retries=5):
                 break
 
 def generate_table():
-    table = Table(title="[bold blue]Gemini CLI Sub-Agent Dashboard[/bold blue]")
-    table.add_column("Project", style="cyan", no_wrap=True)
-    table.add_column("Status", style="magenta")
-    table.add_column("Current Step", style="green")
-    table.add_column("Progress", style="yellow")
-    table.add_column("Limit", style="red")
+    table = Table(title="[bold blue]Gemini CLI Sub-Agent Dashboard[/bold blue]", expand=True)
+    table.add_column("Project", style="cyan", width=20, no_wrap=True, overflow="ellipsis")
+    table.add_column("Status", style="magenta", width=12, no_wrap=True, overflow="ellipsis")
+    table.add_column("Current Step", style="green", width=50, no_wrap=True, overflow="ellipsis")
+    table.add_column("Progress", style="yellow", width=20, no_wrap=True)
+    table.add_column("Limit", style="red", width=6, no_wrap=True)
 
     for name, info in project_status.items():
         prog = info["progress"]

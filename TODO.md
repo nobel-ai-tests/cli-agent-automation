@@ -16,7 +16,8 @@
 - [ ] **Phase 3: Skill Integration** `[documentation]`
   - [x] Activate `skill-creator` and formalize the orchestration workflow into a new skill `[documentation]`
   - [x] Document the self-learning loop maintenance in `GEMINI.md` `[documentation]`
-- [ ] **Phase 4: Verification** `[test]`
-  - [ ] Execute the 10 games in `projects.json` as a stress test `[automation]`
-  - [ ] Audit `LESSONS_LEARNED.md` to ensure it captured useful insights from the run `[test]`
-  - [ ] Verify that `subagent_instructions.txt` was correctly updated and applied `[test]`
+- [x] **Phase 4: Verification** `[test]`
+  - [x] Execute the 10 games in `projects.json` as a stress test `[automation]`
+  - [x] Audit `LESSONS_LEARNED.md` to ensure it captured useful insights from the run `[test]`
+  - [x] Verify that `subagent_instructions.txt` was correctly updated and applied `[test]`
+  - [ ] Run a new iteration with updated instructions to verify improved subagent behavior `[automation]`

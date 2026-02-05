@@ -12,24 +12,43 @@ INSTRUCTIONS_FILE = os.path.join(BASE_DIR, "subagent_instructions.txt")
 
 def analyze_logs():
     if not os.path.exists(LOG_FILE):
-        return "No log file found."
+        return {"errors": [], "loops": {}}
     
     errors = []
+    steps_by_project = {}
     try:
         with open(LOG_FILE, "r") as f:
             for line in f:
                 try:
                     entry = json.loads(line)
+                    proj = entry.get("project")
+                    msg = entry.get("message")
+                    
                     if entry.get("level") in ["ERROR", "WARNING", "CRITICAL"]:
                         errors.append(entry)
+                    
+                    if proj and msg:
+                        if proj not in steps_by_project:
+                            steps_by_project[proj] = []
+                        steps_by_project[proj].append(msg)
                 except json.JSONDecodeError:
-                    # Fallback for non-JSON lines if any
-                    if "Error" in line or "limit" in line.lower():
-                        errors.append({"message": line.strip(), "level": "UNKNOWN"})
+                    pass
     except Exception as e:
-        return f"Error reading logs: {str(e)}"
+        print(f"Error reading logs: {str(e)}")
+        return {"errors": [], "loops": {}}
     
-    return errors
+    # Detect loops (repetitive messages)
+    loops = {}
+    for proj, steps in steps_by_project.items():
+        counts = {}
+        for s in steps:
+            counts[s] = counts.get(s, 0) + 1
+        
+        repeated = {k: v for k, v in counts.items() if v > 5}
+        if repeated:
+            loops[proj] = repeated
+
+    return {"errors": errors, "loops": loops}
 
 def check_project_integrity():
     results = {}
@@ -60,25 +79,55 @@ def check_project_integrity():
                 "is_done": ".done" in files
             }
             results[project] = integrity
+            
+            # PROACTIVE: If it's valid but not marked done, mark it now!
+            if index_valid and not integrity["is_done"]:
+                done_file = os.path.join(path, ".done")
+                with open(done_file, "w") as f:
+                    f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " (Post-Mortem Repair)")
+                print(f"Repaired .done status for {project}")
+                integrity["is_done"] = True
+                
     return results
 
 def synthesize_lessons(log_analysis, integrity_results):
+    current_instructions = ""
+    if os.path.exists(INSTRUCTIONS_FILE):
+        with open(INSTRUCTIONS_FILE, "r") as f:
+            current_instructions = f.read()
+
     prompt = f"""
-    Analyze the following execution results from a parallel Gemini CLI orchestrator and provide 3-5 actionable lessons for future sub-agents and the controller.
+    Analyze the execution results of a parallel Gemini CLI orchestrator.
     
-    Errors found in logs:
+    Errors and Loop Detection:
     {json.dumps(log_analysis, indent=2)}
     
-    Project Integrity Check:
+    Project Integrity Check (Did they finish?):
     {json.dumps(integrity_results, indent=2)}
     
-    Format the output as a Markdown file with '## Lessons for Controller' and '## Lessons for Sub-Agents' sections.
+    Current Sub-Agent Instructions:
+    {current_instructions}
+    
+    Goal:
+    1. Identify WHY projects failed or got stuck in loops.
+    2. Synthesize 3-5 NEW actionable lessons.
+    3. Produce a COMPLETE updated version of 'Sub-Agent Instructions' that incorporates both old and new lessons, avoiding redundancy.
+    
+    Format the output as a Markdown file with:
+    ## Analysis
+    (Your thoughts)
+    
+    ## Lessons for Controller
+    (How to improve the python orchestrator)
+    
+    ## Updated Sub-Agent Instructions
+    (The full block to be used in future prompts)
     """
     
-    # Run gemini to synthesize lessons
     try:
         process = subprocess.run(
-            ["gemini", "-p", prompt],
+            ["gemini"],
+            input=prompt,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -91,8 +140,8 @@ def synthesize_lessons(log_analysis, integrity_results):
         return f"Exception during synthesis: {str(e)}"
 
 def update_instructions(lessons):
-    # Extract sub-agent lessons and append to subagent_instructions.txt
-    match = re.search(r"## Lessons for Sub-Agents\n(.*?)(?=\n##|$)", lessons, re.DOTALL)
+    # Extract updated sub-agent lessons and update the file
+    match = re.search(r"## Updated Sub-Agent Instructions\n(.*?)(?=\n##|$)", lessons, re.DOTALL)
     if match:
         sub_lessons = match.group(1).strip()
         with open(INSTRUCTIONS_FILE, "w") as f:
@@ -101,10 +150,10 @@ def update_instructions(lessons):
 
 def main():
     print("Starting post-mortem analysis...")
-    log_errs = analyze_logs()
+    log_data = analyze_logs()
     integrity = check_project_integrity()
     
-    lessons = synthesize_lessons(log_errs, integrity)
+    lessons = synthesize_lessons(log_data, integrity)
     
     with open(LESSONS_FILE, "w") as f:
         f.write(lessons)

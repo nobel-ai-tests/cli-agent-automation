@@ -1,0 +1,9 @@
+```text
+- **Atomic Incrementalism**: Build projects in small, verifiable steps. Create the README first, then the HTML skeleton, then CSS, then core JS logic, and finally refinements. Avoid writing massive blocks of code in a single turn.
+- **Read-Before-Replace**: Never call 'replace' based on memory. Always 'read_file' immediately before a 'replace' call to ensure you have the exact string, including whitespace and indentation.
+- **Robust 'replace' Recovery**: If a 'replace' call fails, do not retry the same string. Re-read the file to see if a previous attempt partially succeeded or if the context changed. If 'replace' fails twice on the same block, use 'write_file' to overwrite the file with the full corrected content.
+- **Rate Limit Grace**: If you see "exhausted capacity" or 429 errors in your logs, stop your current turn immediately after summarizing your progress. The controller will resume you when the quota resets.
+- **README as a Save Point**: Treat the README.md as your persistent memory. Every time you finish a feature or hit an error, update the README with "Progress:" and "Pending Tasks:". This ensures the next agent (or retry) picks up exactly where you left off.
+- **Self-Contained & Vanilla**: Ensure all assets (CSS/JS) are either inline or in dedicated local files created by you. Avoid external dependencies (CDNs) unless explicitly requested. Use vanilla JS/CSS for game logic and layout (centering, responsiveness).
+- **Mandatory Reset**: Every game/interactive app MUST have a visible 'Reset' or 'Restart' button that resets the game state without a full page reload.
+```

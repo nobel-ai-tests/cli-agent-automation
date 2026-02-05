@@ -102,7 +102,7 @@ def run_agent(project, update_ui_cb, max_retries=5):
 
                     step = extract_step(line_stripped)
                     if step:
-                        project_status[name]["step"] = step[:60] + "..." if len(step) > 60 else step
+                        project_status[name]["step"] = step[:100] + "..." if len(step) > 100 else step
                         project_status[name]["progress"] = min(95, project_status[name]["progress"] + 10)
                         update_ui_cb()
 
@@ -150,12 +150,12 @@ def run_agent(project, update_ui_cb, max_retries=5):
                 break
 
 def generate_table():
-    table = Table(title="[bold blue]Gemini CLI Sub-Agent Dashboard[/bold blue]")
-    table.add_column("Project", style="cyan", no_wrap=True)
-    table.add_column("Status", style="magenta")
-    table.add_column("Current Step", style="green")
-    table.add_column("Progress", style="yellow")
-    table.add_column("Limit", style="red")
+    table = Table(title="[bold blue]Gemini CLI Sub-Agent Dashboard[/bold blue]", expand=True)
+    table.add_column("Project", style="cyan", width=20, no_wrap=True, overflow="ellipsis")
+    table.add_column("Status", style="magenta", width=12, no_wrap=True, overflow="ellipsis")
+    table.add_column("Current Step", style="green", width=50, no_wrap=True, overflow="ellipsis")
+    table.add_column("Progress", style="yellow", width=20, no_wrap=True)
+    table.add_column("Limit", style="red", width=6, no_wrap=True)
 
     for name, info in project_status.items():
         prog = info["progress"]
