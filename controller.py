@@ -7,16 +7,21 @@ import re
 import time
 import random
 import threading
+import tempfile
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from rich.live import Live
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
+# Dynamic path resolution
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECTS_FILE = os.path.join(BASE_DIR, "projects.json")
+PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
+LOG_FILE = os.path.join(BASE_DIR, "controller.log")
+INSTRUCTIONS_FILE = os.path.join(BASE_DIR, "subagent_instructions.txt")
+
 # Configuration
-PROJECTS_FILE = "projects.json"
-PROJECTS_DIR = "projects"
-LOG_FILE = "controller.log"
 EXECUTION_TIMEOUT = 300  # 5 minutes per agent
 MAX_BACKOFF = 60
 
@@ -26,10 +31,29 @@ concurrency_semaphore = None
 current_max_workers = 2
 concurrency_lock = threading.Lock()
 
-def log(message):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def atomic_write(file_path, content):
+    """Write content to a file atomically using a temporary file."""
+    dir_name = os.path.dirname(file_path)
+    fd, temp_path = tempfile.mkstemp(dir=dir_name, text=True)
+    try:
+        with os.fdopen(fd, 'w') as f:
+            f.write(content)
+        os.replace(temp_path, file_path)
+    except Exception as e:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise e
+
+def log(message, level="INFO", project=None):
+    """Structured logging."""
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "level": level,
+        "project": project,
+        "message": message
+    }
     with open(LOG_FILE, "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
+        f.write(json.dumps(entry) + "\n")
 
 def is_project_complete(project_dir):
     """Check if the project has already been completed successfully."""
@@ -37,25 +61,29 @@ def is_project_complete(project_dir):
 
 def mark_project_done(project_dir):
     """Mark the project as completed successfully."""
-    with open(os.path.join(project_dir, ".done"), "w") as f:
-        f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    done_file = os.path.join(project_dir, ".done")
+    atomic_write(done_file, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 def extract_step(line):
     """Try to extract a concise 'current step' from the agent's output."""
     line = line.strip()
     # Patterns common in Gemini CLI output when planning/acting
+    # Updated to handle potential dots in filenames better
     patterns = [
-        r"(I will\s+.*?\.)",
-        r"(I'll\s+.*?\.)",
-        r"(Creating\s+.*?\.)",
-        r"(Reading\s+.*?\.)",
-        r"(Writing\s+.*?\.)",
-        r"(Running\s+.*?\.)"
+        r"(I will\s+.*?\.($|\s))",
+        r"(I'll\s+.*?\.($|\s))",
+        r"(Creating\s+.*)",
+        r"(Reading\s+.*)",
+        r"(Writing\s+.*)",
+        r"(Running\s+.*)",
+        r"(Executing\s+.*)",
+        r"(Analyzing\s+.*)",
+        r"(Searching\s+.*)"
     ]
     for p in patterns:
         match = re.search(p, line, re.IGNORECASE)
         if match:
-            return match.group(1)
+            return match.group(1).strip()
     return None
 
 def check_rate_limit(line):
@@ -64,7 +92,8 @@ def check_rate_limit(line):
         r"exhausted your capacity",
         r"rate limit reached",
         r"quota exceeded",
-        r"429 Too Many Requests"
+        r"429 Too Many Requests",
+        r"Resource exhausted"
     ]
     for p in rate_limit_patterns:
         if re.search(p, line, re.IGNORECASE):
@@ -87,8 +116,6 @@ def adjust_concurrency(delta):
                     concurrency_semaphore.acquire(blocking=False)
             current_max_workers = new_val
 
-INSTRUCTIONS_FILE = "subagent_instructions.txt"
-
 def get_subagent_instructions():
     if os.path.exists(INSTRUCTIONS_FILE):
         with open(INSTRUCTIONS_FILE, "r") as f:
@@ -102,7 +129,7 @@ def run_agent(project, update_ui_cb, max_retries=5):
     os.makedirs(project_dir, exist_ok=True)
     
     if is_project_complete(project_dir):
-        log(f"Project {name} already complete. Skipping.")
+        log(f"Project already complete. Skipping.", project=name)
         project_status[name] = {"status": "Done", "step": "Skipped (Already Complete)", "progress": 100}
         update_ui_cb()
         return
@@ -121,7 +148,7 @@ def run_agent(project, update_ui_cb, max_retries=5):
     retries = 0
     while retries <= max_retries:
         with concurrency_semaphore:
-            log(f"Starting agent for project: {name} (Attempt {retries + 1})")
+            log(f"Starting agent (Attempt {retries + 1})", project=name)
             project_status[name]["status"] = "Running"
             project_status[name]["step"] = f"Attempt {retries + 1}..."
             update_ui_cb()
@@ -140,24 +167,21 @@ def run_agent(project, update_ui_cb, max_retries=5):
                 
                 is_rate_limited = False
                 
-                # Stream stdout to find steps and rate limits
-                # Note: This is still potentially blocking if the process produces no output
-                # A more robust way would be using threads or non-blocking reads.
-                # For now, we'll check the time inside the loop.
                 for line in process.stdout:
                     if time.time() - start_time > EXECUTION_TIMEOUT:
                         process.kill()
-                        log(f"[{name}] Timed out after {EXECUTION_TIMEOUT}s")
+                        log(f"Timed out after {EXECUTION_TIMEOUT}s", level="WARNING", project=name)
                         project_status[name]["status"] = "Timed Out"
                         update_ui_cb()
                         break
 
                     line_stripped = line.strip()
-                    log(f"[{name}] STDOUT: {line_stripped}")
+                    if line_stripped:
+                        log(line_stripped, project=name)
                     
                     if check_rate_limit(line_stripped):
                         is_rate_limited = True
-                        log(f"[{name}] Rate limit detected in STDOUT.")
+                        log("Rate limit detected in STDOUT.", level="WARNING", project=name)
 
                     step = extract_step(line_stripped)
                     if step:
@@ -170,21 +194,23 @@ def run_agent(project, update_ui_cb, max_retries=5):
                 # Read stderr for logs and rate limits
                 stderr_output = process.stderr.read()
                 if stderr_output:
-                    log(f"[{name}] STDERR: {stderr_output.strip()}")
+                    log(stderr_output.strip(), level="ERROR", project=name)
                     if check_rate_limit(stderr_output):
                         is_rate_limited = True
-                        log(f"[{name}] Rate limit detected in STDERR.")
+                        log("Rate limit detected in STDERR.", level="WARNING", project=name)
 
                 if project_status[name]["status"] == "Timed Out":
-                    # If we already marked as Timed Out in the loop
                     pass
                 elif is_rate_limited or process.returncode != 0:
+                    error_type = "RateLimit" if is_rate_limited else "FatalError"
+                    log(f"Agent failed. Type: {error_type}, Code: {process.returncode}", level="ERROR", project=name)
+                    
                     if is_rate_limited:
                         adjust_concurrency(-1) # Reduce concurrency on rate limit
                         retries += 1
                         if retries <= max_retries:
                             wait_time = min(MAX_BACKOFF, (2 ** retries) + random.random() * 5)
-                            log(f"[{name}] Rate limited. Retrying in {wait_time:.2f}s...")
+                            log(f"Retrying in {wait_time:.2f}s...", project=name)
                             project_status[name]["status"] = "Retrying"
                             project_status[name]["step"] = f"Rate limited. Waiting {wait_time:.2f}s"
                             update_ui_cb()
@@ -198,6 +224,7 @@ def run_agent(project, update_ui_cb, max_retries=5):
                     project_status[name]["step"] = "Task Completed Successfully"
                     project_status[name]["progress"] = 100
                     mark_project_done(project_dir)
+                    log("Task completed successfully.", project=name)
                     break # Success
                     
                 update_ui_cb()
@@ -205,12 +232,12 @@ def run_agent(project, update_ui_cb, max_retries=5):
                     
             except subprocess.TimeoutExpired:
                 process.kill()
-                log(f"[{name}] Subprocess timed out.")
+                log(f"Subprocess timed out.", level="ERROR", project=name)
                 project_status[name]["status"] = "Timed Out"
                 update_ui_cb()
                 break
             except Exception as e:
-                log(f"Error running agent for {name}: {str(e)}")
+                log(f"Exception: {str(e)}", level="CRITICAL", project=name)
                 project_status[name]["status"] = "Error"
                 project_status[name]["step"] = str(e)[:50]
                 update_ui_cb()

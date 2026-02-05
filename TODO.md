@@ -6,6 +6,8 @@
   - [x] Implement dynamic concurrency adjustment to reduce `max_workers` upon frequent rate limits `[backend]`
   - [x] Add `EXECUTION_TIMEOUT` to `run_agent` to prevent indefinite hanging `[backend]`
   - [x] Implement `is_project_complete` to avoid redundant work (Idempotency) `[backend]`
+  - [x] Implement atomic writes and structured telemetry `[backend]`
+  - [x] Add basic unit tests for core logic `[test]`
 - [x] **Phase 2: Post-Mortem & Self-Learning Loop** `[automation]`
   - [x] Create `critic_agent.py` to analyze `controller.log` and project outputs `[automation]`
   - [x] Add integrity checks to verify existence and basic validity of `index.html`, `style.css`, etc. `[test]`

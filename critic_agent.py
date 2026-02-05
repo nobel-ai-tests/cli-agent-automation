@@ -4,20 +4,31 @@ import json
 import subprocess
 from datetime import datetime
 
-LOG_FILE = "controller.log"
-PROJECTS_DIR = "projects"
-LESSONS_FILE = "LESSONS_LEARNED.md"
-INSTRUCTIONS_FILE = "subagent_instructions.txt"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOG_FILE = os.path.join(BASE_DIR, "controller.log")
+PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
+LESSONS_FILE = os.path.join(BASE_DIR, "LESSONS_LEARNED.md")
+INSTRUCTIONS_FILE = os.path.join(BASE_DIR, "subagent_instructions.txt")
 
 def analyze_logs():
     if not os.path.exists(LOG_FILE):
         return "No log file found."
     
-    with open(LOG_FILE, "r") as f:
-        logs = f.read()
+    errors = []
+    try:
+        with open(LOG_FILE, "r") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    if entry.get("level") in ["ERROR", "WARNING", "CRITICAL"]:
+                        errors.append(entry)
+                except json.JSONDecodeError:
+                    # Fallback for non-JSON lines if any
+                    if "Error" in line or "limit" in line.lower():
+                        errors.append({"message": line.strip(), "level": "UNKNOWN"})
+    except Exception as e:
+        return f"Error reading logs: {str(e)}"
     
-    # Extract errors and rate limits
-    errors = re.findall(r"\[.*?\] (Error running agent for .*?|.*?Rate limit detected.*?)", logs)
     return errors
 
 def check_project_integrity():
@@ -45,7 +56,8 @@ def check_project_integrity():
                 "has_readme": "README.md" in files,
                 "has_index": "index.html" in files,
                 "index_valid": index_valid,
-                "file_count": len(files)
+                "file_count": len(files),
+                "is_done": ".done" in files
             }
             results[project] = integrity
     return results
@@ -60,7 +72,7 @@ def synthesize_lessons(log_analysis, integrity_results):
     Project Integrity Check:
     {json.dumps(integrity_results, indent=2)}
     
-    Format the output as a Markdown file with 'Lessons for Controller' and 'Lessons for Sub-Agents' sections.
+    Format the output as a Markdown file with '## Lessons for Controller' and '## Lessons for Sub-Agents' sections.
     """
     
     # Run gemini to synthesize lessons
