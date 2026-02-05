@@ -74,19 +74,65 @@ A static dashboard that visualizes the state of the `projects/` directory. It us
 
 ## Usage
 
+
+
 ### Running the Controller
+
 Execute all projects defined in `projects.json`:
+
 ```bash
+
 python3 controller.py --max-workers 4
+
 ```
+
+
 
 ### Updating the Dashboard
+
 If you've added new projects or modified existing ones, update the web manifest:
+
 ```bash
+
 python3 generate_manifest.py
+
 ```
 
+
+
+## Generated Projects
+
+The following applications have been successfully generated and refined:
+
+- **Catch the Falling Objects**: Emoji-based arcade game.
+
+- **Click Counter Game**: Speed-testing clicker with high scores.
+
+- **Flappy Bird Clone**: Classic side-scroller with dynamic difficulty.
+
+- **Guess the Number**: Simple logic game with history tracking.
+
+- **Maze Escape Game**: Multi-level grid maze with WASD support.
+
+- **Memory Matching Game**: Visual matching cards with persistent best time.
+
+- **Pong Game**: Classic paddle physics with AI opponent.
+
+- **Rock, Paper, Scissors**: Animated strategy game.
+
+- **Snake Game**: Classic retro game with high score persistence.
+
+- **Tic-Tac-Toe**: Accessible 3x3 game with score tracking.
+
+- **Typing Speed Game**: Real-time WPM tracker with sentence variety.
+
+- **Whack-a-Mole**: Grid-based reflex game with animations.
+
+
+
 ## Self-Learning Loop
+
+
 The loop is fully automated. Every run of the controller concludes with a call to the Critic Agent. This ensures that every failure is analyzed and converted into a persistent instruction for the next generation of agents.
 
 ## Skill Integration
